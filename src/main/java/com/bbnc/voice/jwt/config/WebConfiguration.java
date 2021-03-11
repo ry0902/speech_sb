@@ -4,10 +4,7 @@ import com.bbnc.voice.jwt.handler.TokenInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ConcurrentTaskExecutor;
-import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.config.annotation.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,7 +50,11 @@ public class WebConfiguration implements WebMvcConfigurer {
         excludePath.add("/webjars/**");     //swagger
         excludePath.add("/v2/**");     //swagger
         excludePath.add("/swagger-ui.html/**");     //swagger
-        excludePath.add("/user/login");     //注册
+        excludePath.add("/file/video"); //视频播放
+        excludePath.add("/file/getImg/**"); //获取图片
+        excludePath.add("/audio/**"); //获取图片
+        excludePath.add("/user/register");     //注册
+        excludePath.add("/user/login");     //登录
         excludePath.add("/static/**");  //静态资源
         excludePath.add("/assets/**");  //静态资源
         registry.addInterceptor(tokenInterceptor)
@@ -61,5 +62,11 @@ public class WebConfiguration implements WebMvcConfigurer {
                 .excludePathPatterns(excludePath);
         WebMvcConfigurer.super.addInterceptors(registry);
 
+    }
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/audio/**").addResourceLocations("file:D://speech/output/");
+        WebMvcConfigurer.super.addResourceHandlers(registry);
     }
 }

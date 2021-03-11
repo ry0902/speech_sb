@@ -243,6 +243,7 @@ public class wav {
 
             //wav wave = new wav();
             this.samples = data;
+            this.samples = data;
             //wave.wavs = data;
             this.fs = fs;
             //wave.fs = fs;

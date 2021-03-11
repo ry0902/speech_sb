@@ -1,12 +1,15 @@
 package com.bbnc.voice.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.bbnc.voice.ThreadLocal.ThreadLocalUser;
 import com.bbnc.voice.VO.ResultVO;
-import com.bbnc.voice.entity.User;
-import com.bbnc.voice.entity.UserVideo;
+import com.bbnc.voice.entity.EduVideoSource;
+import com.bbnc.voice.entity.SysUser;
+import com.bbnc.voice.entity.VideoPath;
 import com.bbnc.voice.enums.ResultEnum;
 import com.bbnc.voice.handler.NonStaticResourceHttpRequestHandler;
-import com.bbnc.voice.service.UserVideoService;
+import com.bbnc.voice.service.EduVideoSourceService;
+import com.bbnc.voice.service.VideoPathService;
 import com.bbnc.voice.utils.Assert;
 import com.bbnc.voice.utils.CommonUtils;
 import com.bbnc.voice.utils.ResultVOUtil;
@@ -20,10 +23,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Timestamp;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -34,20 +39,24 @@ import java.util.Map;
 public class FileController {
 
     @Autowired
-    private UserVideoService userVideoService;
+    private EduVideoSourceService eduVideoSourceService;
+    @Autowired
+    private VideoPathService videoPathService;
 
     @Autowired
     private NonStaticResourceHttpRequestHandler nonStaticResourceHttpRequestHandler;
 
     @ApiOperation("视频播放接口")
     @ApiImplicitParams({
-            @ApiImplicitParam(name = "id", value = "根据id取出视频的绝对路径来播放", required = true)
+            @ApiImplicitParam(name = "videoId", value = "根据videoId取出视频的绝对路径来播放", required = true)
     })
     @GetMapping("/video")
-    public void videoPreview(HttpServletRequest request, HttpServletResponse response, Integer id) throws Exception {
-        Assert.assertNotNull(id);
+    public void videoPreview(HttpServletRequest request, HttpServletResponse response, Integer videoId) throws Exception {
+        Assert.assertNotNull(videoId);
+        QueryWrapper<VideoPath> queryWrapper = new QueryWrapper<>();
+        queryWrapper.lambda().eq(VideoPath::getVideoId, videoId);
         //绝对路径
-        String realPath = userVideoService.getById(id).getPath();
+        String realPath = videoPathService.getOne(queryWrapper).getPath();
 
         Path filePath = Paths.get(realPath);
         if (Files.exists(filePath)) {
@@ -63,7 +72,6 @@ public class FileController {
         }
     }
 
-
     @ApiOperation("视频上传接口")
     @PostMapping("/upload")
     public ResultVO fileUpload(@RequestParam("files") MultipartFile[] files){
@@ -74,9 +82,11 @@ public class FileController {
         map.put("failCount", failCount);
         map.put("successList", list);
 
-        User user = ThreadLocalUser.getCurrentUser();
+        SysUser user = ThreadLocalUser.getCurrentUser();
         list.forEach(m -> {
-            userVideoService.save(new UserVideo(user.getId(), m.get("filePath"), m.get("originalFilename")));
+            EduVideoSource eduVideoSource =  new EduVideoSource(m.get("name"), m.get("videoSize"), Integer.parseInt(m.get("videoDuration")),1, 1, user.getUserId(), m.get("videoType"));
+            eduVideoSourceService.save(eduVideoSource);
+            videoPathService.save(new VideoPath(eduVideoSource.getVideoId(), m.get("filePath")));
         });
         return ResultVOUtil.success(map);
     }
@@ -84,32 +94,81 @@ public class FileController {
     @ApiOperation("视频修改接口")
     @ApiImplicitParams({
             @ApiImplicitParam(name = "multipartFile", value = "单个文件,上传一个新的视频", required = true),
-            @ApiImplicitParam(name = "id", value = "记录的id，我会根据这个id去查询哪个记录", required = true)
+            @ApiImplicitParam(name = "videoId", value = "记录的videoId，我会根据这个videoId去查询哪个记录", required = true)
     })
-    @PutMapping("/update")
-    public ResultVO fileUpdate(@RequestParam("file") MultipartFile multipartFile, Integer id){
-        Assert.assertNotNull(multipartFile, id);
-        UserVideo userVideo = userVideoService.getById(id);
-        Assert.assertNotNull(userVideo);
+    @PostMapping("/update")
+    public ResultVO fileUpdate(@RequestParam("file") MultipartFile multipartFile, Integer videoId){
+        Assert.assertNotNull(multipartFile, videoId);
+        EduVideoSource eduVideoSource = eduVideoSourceService.getById(videoId);
+        Assert.assertNotNull(eduVideoSource);
+        QueryWrapper<VideoPath> queryWrapper = new QueryWrapper<>();
+        queryWrapper.lambda().eq(VideoPath::getVideoId, videoId);
+        VideoPath videoPath = videoPathService.getOne(queryWrapper);
+        Assert.assertNotNull(videoPath);
         try {
-            CommonUtils.deleteFile(userVideo.getPath());
-            userVideo.setPath(CommonUtils.uploadFile(multipartFile));
-            userVideo.setUploadTime(new Date());
-            userVideoService.saveOrUpdate(userVideo);
-            return ResultVOUtil.success(userVideo);
+            CommonUtils.deleteFile(videoPath.getPath());
+            videoPath.setPath(CommonUtils.uploadFile(multipartFile));
+            eduVideoSource.setAddTime(new Timestamp(new Date().getTime()));
+            eduVideoSourceService.saveOrUpdate(eduVideoSource);
+            videoPathService.update(videoPath, queryWrapper);
+            return ResultVOUtil.success("上传成功");
         } catch (Exception e) {
+            e.printStackTrace();
             return ResultVOUtil.error(ResultEnum.FILE_UPLOAD_ERR);
         }
     }
 
     @ApiOperation("下载文件接口")
     @ApiImplicitParams({
-            @ApiImplicitParam(name = "path", value = "下载文件的路径", required = true)
+            @ApiImplicitParam(name = "videoId", value = "下载文件的videoId", required = true)
     })
     @PostMapping("/download")
-    public void fileDownload(Integer id, HttpServletResponse response) {
-        UserVideo userVideo = userVideoService.getById(id);
-        Assert.assertNotNull(userVideo);
-        CommonUtils.downloadFile(userVideo.getPath(), response);
+    public void fileDownload(Integer videoId, HttpServletResponse response) {
+        Assert.assertNotNull(videoId);
+        QueryWrapper<VideoPath> queryWrapper = new QueryWrapper<>();
+        queryWrapper.lambda().eq(VideoPath::getVideoId, videoId);
+        VideoPath videoPath = videoPathService.getOne(queryWrapper);
+        Assert.assertNotNull(videoPath);
+        CommonUtils.downloadFile(videoPath.getPath(), response);
     }
+
+    @ApiOperation("上传图片")
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "file", value = "用户上传的图片"),
+            @ApiImplicitParam(name = "videoId", value = "要上传图片对应文件的videoId")
+    })
+    @PostMapping("/uploadImg")
+    public ResultVO imgUpload(@RequestParam("file") MultipartFile multipartFile, Integer videoId) throws IOException {
+        Assert.assertNotNull(videoId);
+        EduVideoSource eduVideoSource = eduVideoSourceService.getById(videoId);
+        String imgUrl = CommonUtils.writeOut(multipartFile, videoId);
+        eduVideoSource.setImageUrl(imgUrl);
+        eduVideoSourceService.saveOrUpdate(eduVideoSource);
+        return ResultVOUtil.success(imgUrl);
+    }
+
+    @ApiOperation("获取图片")
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "videoId", value = "要上传图片对应文件的videoId")
+    })
+    @GetMapping("/getImg/{videoId}")
+    public void getImage(HttpServletResponse response, @PathVariable Integer videoId) {
+        File baseDir  = new File(CommonUtils.IMAGE_PATH);
+        File imageFile = new File(baseDir, videoId + "." + CommonUtils.IMAGE_FORMAT);
+        if (!imageFile.exists()){
+            imageFile = new File(baseDir, "default.png");
+        }
+        try {
+            InputStream inputStream = new BufferedInputStream(new FileInputStream(imageFile));
+
+            response.setContentType("image/jpeg");
+            OutputStream out = response.getOutputStream();
+
+            out.write(inputStream.readAllBytes());
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 }

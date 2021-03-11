@@ -10,7 +10,9 @@ public enum ResultEnum {
 
     TOKEN_INVALID(3, "Token不存在或者过期"),
 
-    FILE_UPLOAD_ERR(4, "文件处理错误");
+    FILE_UPLOAD_ERR(4, "文件处理错误"),
+
+    PERMISSION_ERR(5, "你没有该权限");
 
     private Integer code;
 

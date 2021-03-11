@@ -6,9 +6,9 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.bbnc.voice.ThreadLocal.ThreadLocalUser;
-import com.bbnc.voice.entity.User;
+import com.bbnc.voice.entity.SysUser;
 import com.bbnc.voice.jwt.util.TokenUtil;
-import com.bbnc.voice.service.UserService;
+import com.bbnc.voice.service.SysUserService;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -21,7 +21,7 @@ import javax.servlet.http.HttpServletResponse;
 public class TokenInterceptor implements HandlerInterceptor {
 
     @Autowired
-    private UserService userService;
+    private SysUserService sysUserService;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -39,7 +39,7 @@ public class TokenInterceptor implements HandlerInterceptor {
                 JWTVerifier jwtVerifier = JWT.require(Algorithm.HMAC256(TokenUtil.TOKEN_SECRET)).withIssuer("auth0").build();//创建token验证器
                 DecodedJWT decodedJWT = jwtVerifier.verify(token);
                 String username = decodedJWT.getClaim("username").asString();
-                User user = userService.getOne(new QueryWrapper<User>().lambda().eq(User::getUsername, username));
+                SysUser user = sysUserService.getOne(new QueryWrapper<SysUser>().lambda().eq(SysUser::getLoginName, username));
                 if(user != null) {
                     ThreadLocalUser.set(user);
                     System.out.println("user === " + ThreadLocalUser.getCurrentUser());

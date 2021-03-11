@@ -22,12 +22,13 @@ public class ApiUtils {
 	public static String Convert_BytesToBase64(byte[] BytesData) {
 		String basicEncoded = Base64.getEncoder().encodeToString(BytesData);
 		//String urlEncoded = Base64.getUrlEncoder().encodeToString(ordinal.getBytes(UTF_8));
-		//URL°²È«µÄbase64±àÂëÆ÷
+		//URLï¿½ï¿½È«ï¿½ï¿½base64ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		return basicEncoded;
 	}
 	
 	public static String SendToASRTServer(String token, int fs, short[] IntsData) {
-		String url = "http://127.0.0.1:20000/";
+//		String url = "http://localhost:20000/";
+        String url = "http://10.30.90.13:20000/";
 		String _fs = String.valueOf(fs);
 		String postData =  "token=" + token + "&fs=" + _fs;
 		
@@ -38,7 +39,7 @@ public class ApiUtils {
 			buf.append("&wavs=" + String.valueOf(IntsData[i]));
 		}
 		postData = buf.toString();
-		System.out.println("postData: \n" + postData);
+//		System.out.println("postData: \n" + postData);
 		String s1 = HttpRequest.sendPost(url, postData);
 		//System.out.println("s1: \n" + s1);
 		return s1;

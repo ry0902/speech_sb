@@ -6,7 +6,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTCreationException;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
-import com.bbnc.voice.entity.User;
+import com.bbnc.voice.entity.SysUser;
 
 import java.util.Date;
 
@@ -16,13 +16,13 @@ public class TokenUtil {
 
     public static final String TOKEN_SECRET = "ljdyaishijin**3nkjnj??";  //密钥盐
 
-    public static String sign(User user) {
+    public static String sign(SysUser user) {
         String token = null;
         try {
             Date expireAt = new Date(System.currentTimeMillis() + EXPIRE_TIME);
             token = JWT.create()
                     .withIssuer("auth0")//发行人
-                    .withClaim("username",user.getUsername())//存放数据
+                    .withClaim("username",user.getLoginName())//存放数据
                     .withExpiresAt(expireAt)//过期时间
                     .sign(Algorithm.HMAC256(TOKEN_SECRET));
         } catch (IllegalArgumentException | JWTCreationException je) {
